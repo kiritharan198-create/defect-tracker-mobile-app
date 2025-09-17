@@ -1,8 +1,6 @@
-// src/firebase.js
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 
-// Replace with your existing Firebase config (this is the one you've used already)
 const firebaseConfig = {
   apiKey: "AIzaSyDXGvYVxFNXjR-w1TAtM5dyB7zgFhoHU3c",
   authDomain: "defecttrackersystem-566a8.firebaseapp.com",
