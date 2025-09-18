@@ -1,147 +1,84 @@
+// app/index.js
+import { router, useNavigation } from "expo-router";
 import { collection, getDocs, query, where } from "firebase/firestore";
-import React, { useState } from "react";
-import { Alert, Button, StyleSheet, Text, TextInput, View, ActivityIndicator } from "react-native";
+import React, { useEffect, useState } from "react";
+import { ActivityIndicator, Alert, Button, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { db } from "../src/firebase";
 
-export default function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [employeeId, setEmployeeId] = useState("");
-  const [code, setCode] = useState("");
-  const [assignment, setAssignment] = useState(null);
-  const [loading, setLoading] = useState(false);
+export default function LoginScreen() {
+    const [employeeId, setEmployeeId] = useState("");
+    const [code, setCode] = useState("");
+    const [loading, setLoading] = useState(false);
+    const [showCode, setShowCode] = useState(false);
+    const navigation = useNavigation();
 
-  const handleLogin = async () => {
-    if (!employeeId || !code) {
-      Alert.alert("Error", "Please enter Employee ID and Assigned Code");
-      return;
-    }
+    useEffect(() => {
+        const unsubscribe = navigation.addListener('focus', () => {
+            setEmployeeId("");
+            setCode("");
+            setShowCode(false);
+        });
+        return unsubscribe;
+    }, [navigation]);
 
-    setLoading(true);
-    try {
-      const employeesRef = collection(db, "employees");
-      const employeeQuery = query(
-        employeesRef,
-        where("id", "==", employeeId),
-        where("assignedCode", "==", code)
-      );
-
-      const employeeSnapshot = await getDocs(employeeQuery);
-
-      if (!employeeSnapshot.empty) {
-        const assignmentsRef = collection(db, "assignments");
-        const assignmentQuery = query(
-          assignmentsRef,
-          where("code", "==", code)
-        );
-        const assignmentSnapshot = await getDocs(assignmentQuery);
-
-        if (!assignmentSnapshot.empty) {
-          setAssignment(assignmentSnapshot.docs[0].data());
-          setIsLoggedIn(true);
-        } else {
-          Alert.alert("Error", "Assignment details not found.");
+    const handleLogin = async () => {
+        if (!employeeId || !code) {
+            Alert.alert("Error", "Please enter Employee ID and Assigned Code");
+            return;
         }
-      } else {
-        Alert.alert("❌ Error", "Invalid Employee ID or Assigned Code");
-      }
-    } catch (error) {
-      console.error("Login error:", error);
-      Alert.alert("Error", "Something went wrong while logging in");
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  const renderLoginScreen = () => (
-    <View style={styles.container}>
-      <Text style={styles.title}>Employee Login</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Employee ID"
-        value={employeeId}
-        onChangeText={setEmployeeId}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Assigned Code"
-        value={code}
-        onChangeText={setCode}
-        secureTextEntry={true}
-      />
-      {loading ? (
-        <ActivityIndicator size="small" color="#0000ff" />
-      ) : (
-        <Button title="Login" onPress={handleLogin} />
-      )}
-    </View>
-  );
+        setLoading(true);
+        try {
+            const employeesRef = collection(db, "employees");
+            const q = query(
+                employeesRef,
+                where("id", "==", employeeId.trim()),
+                where("assignedCode", "==", code.trim())
+            );
+            const snapshot = await getDocs(q);
 
-  const renderDetailsScreen = () => (
-    <View style={styles.container}>
-      <Text style={styles.header}>Your Assignment</Text>
-      <View style={styles.infoBox}>
-        <Text style={styles.label}>Project ID:</Text>
-        <Text style={styles.value}>{assignment.projectId}</Text>
-      </View>
-      <View style={styles.infoBox}>
-        <Text style={styles.label}>Role:</Text>
-        <Text style={styles.value}>{assignment.role}</Text>
-      </View>
-      <View style={styles.infoBox}>
-        <Text style={styles.label}>Assigned Code:</Text>
-        <Text style={styles.value}>{assignment.code}</Text>
-      </View>
-      <Button title="Logout" onPress={() => setIsLoggedIn(false)} />
-    </View>
-  );
+            if (!snapshot.empty) {
+                // Pass both assignedCode and employeeId to the details page
+                router.replace({ pathname: "/details", params: { assignedCode: code, employeeId: employeeId } });
+            } else {
+                Alert.alert("Error", "Invalid Employee ID or Assigned Code");
+            }
+        } catch (error) {
+            console.error(error);
+            Alert.alert("Error", "Something went wrong");
+        } finally {
+            setLoading(false);
+        }
+    };
 
-  return isLoggedIn ? renderDetailsScreen() : renderLoginScreen();
+    return (
+        <View style={styles.container}>
+            <Text style={styles.title}>Employee Login</Text>
+            <TextInput
+                style={styles.input}
+                placeholder="Employee ID"
+                value={employeeId}
+                onChangeText={setEmployeeId}
+            />
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <TextInput
+                    style={[styles.input, { flex: 1, marginBottom: 0 }]}
+                    placeholder="Assigned Code"
+                    value={code}
+                    onChangeText={setCode}
+                    secureTextEntry={!showCode}
+                />
+                <TouchableOpacity onPress={() => setShowCode(!showCode)} style={{ marginLeft: 8 }}>
+                    <Text style={{ fontWeight: "bold" }}>{showCode ? "Hide" : "Show"}</Text>
+                </TouchableOpacity>
+            </View>
+            {loading ? <ActivityIndicator style={{ marginTop: 20 }} /> : <Button title="Login" onPress={handleLogin} />}
+        </View>
+    );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: "center",
-    padding: 20,
-    backgroundColor: "#f0f8ff",
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: "bold",
-    marginBottom: 25,
-    textAlign: "center",
-  },
-  header: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 20,
-    textAlign: "center",
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    padding: 12,
-    marginBottom: 20,
-    borderRadius: 8,
-    backgroundColor: "#fff",
-  },
-  infoBox: {
-    flexDirection: "row",
-    marginBottom: 15,
-    padding: 10,
-    backgroundColor: "#fff",
-    borderRadius: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  label: {
-    fontWeight: "bold",
-    marginRight: 10,
-  },
-  value: {
-    flex: 1,
-  },
+    container: { flex: 1, justifyContent: "center", padding: 20, backgroundColor: "#f0f8ff" },
+    title: { fontSize: 26, fontWeight: "bold", marginBottom: 20, textAlign: "center" },
+    input: { borderWidth: 1, borderColor: "#ccc", padding: 12, marginBottom: 12, borderRadius: 8, backgroundColor: "#fff" },
 });
